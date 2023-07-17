@@ -119,7 +119,7 @@ func (t *Tokenizer) Next() (Token, error) {
 		if token.Type == NumberToken {
 			if unicode.IsDigit(r) || r == '.' {
 				// a number cannot contain more than 1 '.'
-				if r == '.' && strings.IndexRune(token.Value, r) >= 0 {
+				if r == '.' && strings.ContainsRune(token.Value, r) {
 					return token, fmt.Errorf("two many '.' in a number: %s", token.String())
 				}
 
