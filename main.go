@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hajimehoshi/oto/v2"
 	"github.com/sywesk/audiomix/pkg/audiograph"
 	"github.com/sywesk/audiomix/pkg/audiograph/components"
+	"github.com/sywesk/audiomix/pkg/audiograph/ddl"
 )
 
 const (
@@ -20,17 +22,26 @@ func main() {
 
 	<-ctxReady
 
+	_, err = ddl.LoadFile("./examples/sin_sin.audiograph")
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+	return
+
 	graph := audiograph.New(SAMPLE_RATE)
 
-	freqID := graph.AddComponent(components.NewFloatParam(650.0))
-	gainID := graph.AddComponent(components.NewFloatParam(1.0))
-	offsetID := graph.AddComponent(components.NewFloatParam(0.0))
+	sinFreqID := graph.AddComponent(components.NewSinGenerator())
+
+	graph.MustAddCable(graph.AddComponent(components.NewFloatParam(2)), "float", sinFreqID, "freq")
+	graph.MustAddCable(graph.AddComponent(components.NewFloatParam(500)), "float", sinFreqID, "gain")
+	graph.MustAddCable(graph.AddComponent(components.NewFloatParam(600)), "float", sinFreqID, "offset")
+
 	sinID := graph.AddComponent(components.NewSinGenerator())
 	f2sID := graph.AddComponent(components.NewFloatToSample())
 
-	graph.MustAddCable(freqID, "float", sinID, "freq")
-	graph.MustAddCable(gainID, "float", sinID, "gain")
-	graph.MustAddCable(offsetID, "float", sinID, "offset")
+	graph.MustAddCable(sinFreqID, "sinusoid", sinID, "freq")
+	graph.MustAddCable(graph.AddComponent(components.NewFloatParam(1.0)), "float", sinID, "gain")
+	graph.MustAddCable(graph.AddComponent(components.NewFloatParam(0.0)), "float", sinID, "offset")
 	graph.MustAddCable(sinID, "sinusoid", f2sID, "float")
 
 	graph.SetOutput(f2sID, "sample")
