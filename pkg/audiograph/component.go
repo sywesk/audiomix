@@ -44,9 +44,16 @@ type ComponentOutput struct {
 	Value       Value
 }
 
+type ComponentParameter struct {
+	Name        string
+	Description string
+	Value       Value
+}
+
 type ComponentDescription struct {
-	Inputs  []ComponentInput
-	Outputs []ComponentOutput
+	Inputs     []ComponentInput
+	Outputs    []ComponentOutput
+	Parameters []ComponentParameter
 }
 
 type ExecutionContext struct {

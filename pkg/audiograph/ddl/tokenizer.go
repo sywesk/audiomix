@@ -4,8 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"unicode"
+)
+
+var (
+	ErrInvalidValueTokenType = fmt.Errorf("invalid value token type")
 )
 
 type TokenType string
@@ -15,6 +20,7 @@ const (
 	AtToken                 TokenType = "@"
 	OpeningParenthesisToken TokenType = "("
 	ClosingParenthesisToken TokenType = ")"
+	ComaToken               TokenType = ","
 	EqualToken              TokenType = "="
 	ConnectToken            TokenType = "->"
 	IdentifierToken         TokenType = "id"
@@ -31,6 +37,7 @@ var (
 		"=":  EqualToken,
 		"->": ConnectToken,
 		":":  ColonToken,
+		",":  ComaToken,
 		"\n": ReturnToken,
 	}
 )
@@ -48,6 +55,45 @@ func (t Token) String() string {
 		string(t.Type),
 		t.Line,
 		t.Col)
+}
+
+func (t Token) ToValue() (Value, error) {
+	val := Value{}
+
+	if t.Type == IdentifierToken {
+		if strings.ToLower(t.Value) == "false" {
+			val.Type = BoolValueTYpe
+			val.Bool = false
+		} else if strings.ToLower(t.Value) == "true" {
+			val.Type = BoolValueTYpe
+			val.Bool = true
+		} else {
+			val.Type = StringValueType
+			val.String = t.Value
+		}
+	} else if t.Type == NumberToken {
+		if strings.ContainsRune(t.Value, '.') {
+			val.Type = FloatValueType
+			f, err := strconv.ParseFloat(t.Value, 64)
+			if err != nil {
+				return val, fmt.Errorf("failed to parse float '%s': %w", t.Value, err)
+			}
+
+			val.Float = f
+		} else {
+			val.Type = IntegerValueType
+			i, err := strconv.ParseInt(t.Value, 10, 64)
+			if err != nil {
+				return val, fmt.Errorf("failed to parse int '%s': %w", t.Value, err)
+			}
+
+			val.Integer = i
+		}
+	} else {
+		return val, ErrInvalidValueTokenType
+	}
+
+	return val, nil
 }
 
 type Tokenizer struct {
@@ -93,7 +139,7 @@ func (t *Tokenizer) Next() (Token, error) {
 			continue
 		}
 
-		// If we're in a token and we reach an end of line, unread the line return
+		// If we're in a token, and we reach an end of line, unread the line return
 		// for it to be sent as a token at the next Next() call.
 		if token.Type != UnknownToken && r == '\n' {
 			_ = t.reader.UnreadRune()

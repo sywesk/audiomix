@@ -4,12 +4,20 @@ import "github.com/sywesk/audiomix/pkg/audiograph"
 
 type FloatParam struct {
 	description audiograph.ComponentDescription
-	value       float64
 }
 
-func NewFloatParam(value float64) *FloatParam {
+func NewFloatParam() *FloatParam {
 	return &FloatParam{
 		description: audiograph.ComponentDescription{
+			Parameters: []audiograph.ComponentParameter{
+				{
+					Name:        "float",
+					Description: "desired float value",
+					Value: audiograph.Value{
+						Type: audiograph.FloatValueType,
+					},
+				},
+			},
 			Outputs: []audiograph.ComponentOutput{
 				{
 					Name:        "float",
@@ -20,7 +28,6 @@ func NewFloatParam(value float64) *FloatParam {
 				},
 			},
 		},
-		value: value,
 	}
 }
 
@@ -29,6 +36,6 @@ func (s *FloatParam) GetDescription() *audiograph.ComponentDescription {
 }
 
 func (s *FloatParam) Execute(ctx audiograph.ExecutionContext) error {
-	s.description.Outputs[0].Value.Float = s.value
+	s.description.Outputs[0].Value.Float = s.description.Parameters[0].Value.Float
 	return nil
 }

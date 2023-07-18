@@ -6,10 +6,12 @@ import (
 )
 
 var (
-	ErrInputAlreadyUsed     = fmt.Errorf("input already used")
-	ErrUnknownCable         = fmt.Errorf("unknown cable")
-	ErrUnknownComponent     = fmt.Errorf("unknown component")
-	ErrUnknownComponentPort = fmt.Errorf("unknown component port")
+	ErrInputAlreadyUsed          = fmt.Errorf("input already used")
+	ErrUnknownCable              = fmt.Errorf("unknown cable")
+	ErrUnknownComponent          = fmt.Errorf("unknown component")
+	ErrUnknownComponentPort      = fmt.Errorf("unknown component port")
+	ErrUnknownComponentParameter = fmt.Errorf("unknown component parameter")
+	ErrInvalidValueType          = fmt.Errorf("invalid value type")
 )
 
 type PortLocation int
@@ -42,6 +44,7 @@ type audioGraphComponent struct {
 	deleted     bool
 	inputNames  map[string]uint
 	outputNames map[string]uint
+	paramNames  map[string]uint
 }
 
 type audioGraphCable struct {
@@ -89,6 +92,11 @@ func (a *AudioGraph) AddComponent(component Component) ComponentID {
 		outputNames[output.Name] = uint(id)
 	}
 
+	paramNames := map[string]uint{}
+	for id, params := range component.GetDescription().Parameters {
+		paramNames[params.Name] = uint(id)
+	}
+
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
@@ -100,9 +108,32 @@ func (a *AudioGraph) AddComponent(component Component) ComponentID {
 		deleted:     false,
 		inputNames:  inputNames,
 		outputNames: outputNames,
+		paramNames:  paramNames,
 	}
 
 	return id
+}
+
+func (a *AudioGraph) SetParameter(componentID ComponentID, paramName string, value Value) error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	if componentID >= ComponentID(len(a.components)) || a.components[componentID].deleted {
+		return ErrUnknownComponent
+	}
+	component := a.components[componentID]
+
+	paramID, ok := component.paramNames[paramName]
+	if !ok {
+		return ErrUnknownComponentParameter
+	}
+
+	if value.Type != component.description.Parameters[paramID].Value.Type {
+		return ErrInvalidValueType
+	}
+	value.CopyTo(&component.description.Parameters[paramID].Value)
+
+	return nil
 }
 
 func (a *AudioGraph) SetOutput(outputComponentID ComponentID, outputPort string) error {
@@ -234,6 +265,9 @@ func (a *AudioGraph) AddCable(sourceComponentID ComponentID, sourcePort string, 
 		return CableID(0), fmt.Errorf("failed to resolve dest port addr: %w", err)
 	}
 
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	return a.addCable(Cable{
 		Source:      sourcePortAddr,
 		Destination: destPortAddr,
@@ -241,9 +275,6 @@ func (a *AudioGraph) AddCable(sourceComponentID ComponentID, sourcePort string, 
 }
 
 func (a *AudioGraph) addCable(cable Cable) (CableID, error) {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-
 	if _, ok := a.cableDestIndex[cable.Destination]; ok {
 		return 0, fmt.Errorf("input %s cannot be used: %w", cable.Destination.String(), ErrInputAlreadyUsed)
 	}
