@@ -11,7 +11,7 @@ func NewFloatParam() *FloatParam {
 		description: audiograph.ComponentDescription{
 			Parameters: []audiograph.ComponentParameter{
 				{
-					Name:        "float",
+					Name:        "value",
 					Description: "desired float value",
 					Value: audiograph.Value{
 						Type: audiograph.FloatValueType,

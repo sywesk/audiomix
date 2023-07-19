@@ -2,7 +2,6 @@ package ddl
 
 import (
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"os"
 
 	"github.com/sywesk/audiomix/pkg/audiograph"
@@ -15,16 +14,14 @@ func LoadFile(path string) (*audiograph.AudioGraph, error) {
 	}
 	defer file.Close()
 
-	tokenizer := NewTokenizer(file)
+	tokenizer := newLexer(file)
+	parser := newParser(tokenizer)
+	interpreter := newInterpreter(parser)
 
-	parser := NewParser(tokenizer)
-
-	for {
-		stmt, err := parser.Next()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get next statement: %w", err)
-		}
-
-		spew.Dump(stmt)
+	err = interpreter.BuildGraph()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build graph: %w", err)
 	}
+
+	return interpreter.GetGraph(), nil
 }

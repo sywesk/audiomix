@@ -1,20 +1,20 @@
 
-@SAMPLE_RATE 44100
+@SAMPLING_FREQ 48000
 
-freqSinFreq = Float(value=1)
-freqSinGain = Float(value=500)
-freqSinOffset = Float(value=500)
+freqSinFreq = FloatParam(value=1.0)
+freqSinGain = FloatParam(value=500.0)
+freqSinOffset = FloatParam(value=500.0)
 
-freqSin = Sin()
+freqSin = SinGenerator()
 
 freqSinFreq:float -> freqSin:freq
 freqSinGain:float -> freqSin:gain
 freqSinOffset:float -> freqSin:offset
 
-sinGain = Float(value=1)
-sinOffset = Float(value=0)
+sinGain = FloatParam(value=1.0)
+sinOffset = FloatParam(value=0.0)
 
-sin = Sin()
+sin = SinGenerator()
 
 freqSin:sinusoid -> sin:freq
 sinGain:float -> sin:gain

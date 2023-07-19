@@ -3,6 +3,7 @@ package ddl
 import (
 	"bufio"
 	"fmt"
+	"github.com/sywesk/audiomix/pkg/audiograph"
 	"io"
 	"strconv"
 	"strings"
@@ -57,23 +58,23 @@ func (t Token) String() string {
 		t.Col)
 }
 
-func (t Token) ToValue() (Value, error) {
-	val := Value{}
+func (t Token) ToValue() (audiograph.Value, error) {
+	val := audiograph.Value{}
 
 	if t.Type == IdentifierToken {
 		if strings.ToLower(t.Value) == "false" {
-			val.Type = BoolValueTYpe
+			val.Type = audiograph.BoolValueType
 			val.Bool = false
 		} else if strings.ToLower(t.Value) == "true" {
-			val.Type = BoolValueTYpe
+			val.Type = audiograph.BoolValueType
 			val.Bool = true
 		} else {
-			val.Type = StringValueType
+			val.Type = audiograph.StringValueType
 			val.String = t.Value
 		}
 	} else if t.Type == NumberToken {
 		if strings.ContainsRune(t.Value, '.') {
-			val.Type = FloatValueType
+			val.Type = audiograph.FloatValueType
 			f, err := strconv.ParseFloat(t.Value, 64)
 			if err != nil {
 				return val, fmt.Errorf("failed to parse float '%s': %w", t.Value, err)
@@ -81,7 +82,7 @@ func (t Token) ToValue() (Value, error) {
 
 			val.Float = f
 		} else {
-			val.Type = IntegerValueType
+			val.Type = audiograph.IntegerValueType
 			i, err := strconv.ParseInt(t.Value, 10, 64)
 			if err != nil {
 				return val, fmt.Errorf("failed to parse int '%s': %w", t.Value, err)
@@ -96,15 +97,15 @@ func (t Token) ToValue() (Value, error) {
 	return val, nil
 }
 
-type Tokenizer struct {
+type lexer struct {
 	reader     *bufio.Reader
 	readBuffer []byte
 	line       int
 	col        int
 }
 
-func NewTokenizer(reader io.Reader) *Tokenizer {
-	return &Tokenizer{
+func newLexer(reader io.Reader) *lexer {
+	return &lexer{
 		reader:     bufio.NewReader(reader),
 		readBuffer: []byte{0},
 		line:       1,
@@ -112,7 +113,7 @@ func NewTokenizer(reader io.Reader) *Tokenizer {
 	}
 }
 
-func (t *Tokenizer) Next() (Token, error) {
+func (t *lexer) Next() (Token, error) {
 	token := Token{
 		Value: "",
 		Type:  UnknownToken,

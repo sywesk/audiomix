@@ -2,13 +2,14 @@ package ddl
 
 import (
 	"fmt"
+	"github.com/sywesk/audiomix/pkg/audiograph"
 )
 
 var (
 	ErrSyntaxError = fmt.Errorf("syntax error")
 )
 
-type ValueType int
+/*type ValueType int
 
 const (
 	StringValueType  ValueType = 1
@@ -24,6 +25,27 @@ type Value struct {
 	Integer int64
 	Bool    bool
 }
+
+func (v Value) ToGraphValue() audiograph.Value {
+	switch v.Type {
+	case BoolValueTYpe:
+		return audiograph.Value{
+			Type:    audiograph.BoolValueType,
+			Bool:    v.Bool,
+		}
+	case IntegerValueType:
+		return audiograph.Value{
+			Type:    audiograph.IntegerValueType,
+			Integer:    v.Integer,
+		}
+	case FloatValueType:
+		return audiograph.Value{
+			Type:    audiograph.BoolValueType,
+			Bool:    v.Bool,
+		}
+	case StringValueType:
+	}
+}*/
 
 type Connector struct {
 	VariableName  string
@@ -43,8 +65,9 @@ type Statement interface {
 }
 
 type ParameterStatement struct {
+	Line  int
 	Name  string
-	Value Value
+	Value audiograph.Value
 }
 
 func (p ParameterStatement) Type() StatementType {
@@ -52,9 +75,10 @@ func (p ParameterStatement) Type() StatementType {
 }
 
 type CreateComponentStatement struct {
+	Line          int
 	VariableName  string
 	ComponentName string
-	Arguments     map[string]Value
+	Arguments     map[string]audiograph.Value
 }
 
 func (p CreateComponentStatement) Type() StatementType {
@@ -62,6 +86,7 @@ func (p CreateComponentStatement) Type() StatementType {
 }
 
 type ConnectStatement struct {
+	Line int
 	From Connector
 	To   Connector
 }
@@ -74,17 +99,17 @@ type ILexer interface {
 	Next() (Token, error)
 }
 
-type Parser struct {
+type parser struct {
 	lexer ILexer
 }
 
-func NewParser(lexer ILexer) *Parser {
-	return &Parser{
+func newParser(lexer ILexer) *parser {
+	return &parser{
 		lexer: lexer,
 	}
 }
 
-func (p *Parser) Next() (Statement, error) {
+func (p *parser) Next() (Statement, error) {
 	token, err := p.getFirstUsefulToken()
 	if err != nil {
 		return nil, err
@@ -112,7 +137,7 @@ func (p *Parser) Next() (Statement, error) {
 	}
 }
 
-func (p *Parser) parseParameter() (Statement, error) {
+func (p *parser) parseParameter() (Statement, error) {
 	token, err := p.getTypedToken(IdentifierToken)
 	if err != nil {
 		return nil, err
@@ -130,6 +155,7 @@ func (p *Parser) parseParameter() (Statement, error) {
 	}
 
 	return &ParameterStatement{
+		Line:  token.Line,
 		Name:  paramName,
 		Value: value,
 	}, nil
@@ -138,7 +164,7 @@ func (p *Parser) parseParameter() (Statement, error) {
 // parseConnect parses connect expressions that look like:
 //
 //	<componentName>:<connectorName> -> <componentName>:<connectorName>
-func (p *Parser) parseConnect(token1 Token) (Statement, error) {
+func (p *parser) parseConnect(token1 Token) (Statement, error) {
 	// Token1 is an Identifier
 	tokens, err := p.getTypedTokens(IdentifierToken, ConnectToken, IdentifierToken, ColonToken, IdentifierToken)
 	if err != nil {
@@ -152,6 +178,7 @@ func (p *Parser) parseConnect(token1 Token) (Statement, error) {
 	comp2Conn := tokens[4].Value
 
 	return &ConnectStatement{
+		Line: token1.Line,
 		From: Connector{
 			VariableName:  comp1Name,
 			ConnectorName: comp1Conn,
@@ -163,7 +190,7 @@ func (p *Parser) parseConnect(token1 Token) (Statement, error) {
 	}, nil
 }
 
-func (p *Parser) parseCreateComponent(token1 Token) (Statement, error) {
+func (p *parser) parseCreateComponent(token1 Token) (Statement, error) {
 	// Token1 is an Identifier
 	tokens, err := p.getTypedTokens(IdentifierToken, OpeningParenthesisToken)
 	if err != nil {
@@ -171,9 +198,10 @@ func (p *Parser) parseCreateComponent(token1 Token) (Statement, error) {
 	}
 
 	stmt := &CreateComponentStatement{
+		Line:          token1.Line,
 		VariableName:  token1.Value,
 		ComponentName: tokens[0].Value,
-		Arguments:     map[string]Value{},
+		Arguments:     map[string]audiograph.Value{},
 	}
 
 	token, err := p.getOneOfTypedToken(IdentifierToken, ClosingParenthesisToken)
@@ -218,7 +246,7 @@ func (p *Parser) parseCreateComponent(token1 Token) (Statement, error) {
 	return stmt, nil
 }
 
-func (p *Parser) getTypedTokens(ts ...TokenType) ([]Token, error) {
+func (p *parser) getTypedTokens(ts ...TokenType) ([]Token, error) {
 	var tokens []Token
 
 	for _, t := range ts {
@@ -234,7 +262,7 @@ func (p *Parser) getTypedTokens(ts ...TokenType) ([]Token, error) {
 }
 
 // getTypedToken gets the next token and ensures that it has the right type before returning it
-func (p *Parser) getTypedToken(t TokenType) (Token, error) {
+func (p *parser) getTypedToken(t TokenType) (Token, error) {
 	token, err := p.lexer.Next()
 	if err != nil {
 		return Token{}, err
@@ -247,7 +275,7 @@ func (p *Parser) getTypedToken(t TokenType) (Token, error) {
 	return token, nil
 }
 
-func (p *Parser) getOneOfTypedToken(ts ...TokenType) (Token, error) {
+func (p *parser) getOneOfTypedToken(ts ...TokenType) (Token, error) {
 	token, err := p.lexer.Next()
 	if err != nil {
 		return Token{}, err
@@ -263,7 +291,7 @@ func (p *Parser) getOneOfTypedToken(ts ...TokenType) (Token, error) {
 	return Token{}, fmt.Errorf("unexpected token type '%s': %w", string(token.Type), ErrSyntaxError)
 }
 
-func (p *Parser) getFirstUsefulToken() (Token, error) {
+func (p *parser) getFirstUsefulToken() (Token, error) {
 	for {
 		token, err := p.lexer.Next()
 		if err != nil {

@@ -73,11 +73,10 @@ type AudioGraph struct {
 	cableDestIndex map[PortAddress]CableID
 }
 
-func New(samplingFrequency uint32) *AudioGraph {
+func New() *AudioGraph {
 	return &AudioGraph{
-		cableSourceIndex:  map[PortAddress][]CableID{},
-		cableDestIndex:    map[PortAddress]CableID{},
-		samplingFrequency: samplingFrequency,
+		cableSourceIndex: map[PortAddress][]CableID{},
+		cableDestIndex:   map[PortAddress]CableID{},
 	}
 }
 
@@ -149,6 +148,13 @@ func (a *AudioGraph) SetOutput(outputComponentID ComponentID, outputPort string)
 	a.outputSet = true
 
 	return nil
+}
+
+func (a *AudioGraph) SetSamplingFrequency(freq uint32) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	a.samplingFrequency = freq
 }
 
 func (a *AudioGraph) MustResolvePortAddr(componentID ComponentID, portName string, location PortLocation) PortAddress {

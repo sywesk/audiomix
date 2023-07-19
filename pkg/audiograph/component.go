@@ -14,6 +14,7 @@ const (
 	FloatValueType   ValueType = 2
 	SampleValueType  ValueType = 3
 	BoolValueType    ValueType = 4
+	StringValueType  ValueType = 5
 )
 
 type Value struct {
@@ -22,6 +23,7 @@ type Value struct {
 	Float   float64
 	Sample  Sample
 	Bool    bool
+	String  string
 }
 
 func (v Value) CopyTo(dest *Value) {
